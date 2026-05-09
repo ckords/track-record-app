@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command *)",
+      "PowerShell(Start-Sleep -Seconds 2; Invoke-RestMethod -Uri \"http://localhost:3000/api/politicians\" | ConvertTo-Json -Depth 3 | Select-Object -First 50)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/politicians/elizabeth-warren\" -UseBasicParsing | Select-Object -ExpandProperty StatusCode; Invoke-WebRequest -Uri \"http://localhost:3000/politicians/elizabeth-warren/votes\" -UseBasicParsing | Select-Object -ExpandProperty StatusCode)",
+      "PowerShell(winget install *)",
+      "PowerShell(git *)"
+    ]
+  }
+}

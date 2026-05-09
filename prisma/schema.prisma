@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GovernmentLevel {
+  FEDERAL
+  STATE
+  LOCAL
+}
+
+enum Chamber {
+  SENATE
+  HOUSE
+  ASSEMBLY
+  COUNCIL
+  OTHER
+}
+
+enum Party {
+  DEMOCRAT
+  REPUBLICAN
+  INDEPENDENT
+  GREEN
+  LIBERTARIAN
+  OTHER
+}
+
+enum PromiseStatus {
+  IN_PROGRESS
+  KEPT
+  BROKEN
+  COMPROMISED
+  STALLED
+  NOT_YET_RATED
+}
+
+model Politician {
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  level         GovernmentLevel
+  chamber       Chamber?
+  party         Party
+  state         String?
+  district      String?
+  city          String?
+  county        String?
+  office        String
+  imageUrl      String?
+  bio           String?
+  website       String?
+  email         String?
+  phone         String?
+  twitter       String?
+  facebook      String?
+  termStart     DateTime?
+  termEnd       DateTime?
+  isActive      Boolean         @default(true)
+  externalIds   Json?
+
+  votes           Vote[]
+  promises        Promise[]
+  financeRecords  FinanceRecord[]
+  ratings         Rating[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([level, state])
+}
+
+model Vote {
+  id           String     @id @default(cuid())
+  politicianId String
+  politician   Politician @relation(fields: [politicianId], references: [id])
+  billId       String?
+  billTitle    String
+  billSummary  String?
+  chamber      Chamber
+  date         DateTime
+  position     String
+  result       String?
+  category     String?
+  sourceUrl    String?
+  externalId   String?    @unique
+
+  createdAt    DateTime   @default(now())
+
+  @@index([politicianId, date])
+  @@index([category])
+}
+
+model Promise {
+  id           String        @id @default(cuid())
+  politicianId String
+  politician   Politician    @relation(fields: [politicianId], references: [id])
+  title        String
+  description  String
+  category     String?
+  status       PromiseStatus @default(NOT_YET_RATED)
+  madeAt       DateTime?
+  resolvedAt   DateTime?
+  sourceUrl    String?
+  evidenceUrl  String?
+  notes        String?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([politicianId, status])
+}
+
+model FinanceRecord {
+  id              String     @id @default(cuid())
+  politicianId    String
+  politician      Politician @relation(fields: [politicianId], references: [id])
+  cycle           Int
+  totalRaised     Float?
+  totalSpent      Float?
+  cashOnHand      Float?
+  topDonors       Json?
+  donorIndustries Json?
+  sourceUrl       String?
+  externalId      String?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([politicianId, cycle])
+  @@index([politicianId])
+}
+
+model Rating {
+  id           String     @id @default(cuid())
+  politicianId String
+  politician   Politician @relation(fields: [politicianId], references: [id])
+  userId       String
+  score        Int
+  comment      String?
+  isVerified   Boolean    @default(false)
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([politicianId, userId])
+  @@index([politicianId])
+}
