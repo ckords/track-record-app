@@ -9,19 +9,56 @@ const GENERIC_EMPLOYERS = new Set([
   "NOT EMPLOYED/NONE", "INFORMATION REQUESTED BY FILER",
 ]);
 
+// Government-employee entries have no useful industry signal — skip them.
+function isGovernmentEmployer(employer: string): boolean {
+  const u = employer.toUpperCase().trim();
+  return (
+    u.startsWith("STATE OF ") ||
+    u.startsWith("U.S. ") ||
+    u.startsWith("US ") ||
+    u === "FEDERAL GOVERNMENT" ||
+    u === "CONGRESS" ||
+    u === "U.S. GOVERNMENT"
+  );
+}
+
 // Ordered: first match wins. Mirrors OpenSecrets industry category names used by the correlation engine.
 const INDUSTRY_PATTERNS: Array<[RegExp, string]> = [
-  [/lockheed|boeing|raytheon|general dynamics|northrop|l3 tech|bae systems|huntington ingalls|leidos|saic|booz allen|general atomics|textron|harris corp|oshkosh|palantir|anduril/i, "Defense"],
-  [/exxon|chevron|conocophillips|bp |shell |marathon oil|valero|halliburton|schlumberger|baker hughes|pioneer natural|devon energy|entergy|dominion energy|nextera|duke energy|southern company|xcel energy|oil|petroleum|pipeline|refinery|natural gas|flywheel energy/i, "Energy/Nat Resource"],
-  [/tyson|cargill|archer daniels|bunge|corteva|john deere|monsanto|agco|farm bureau|farm credit|land o'lakes|smithfield|perdue|pilgrim|chicken|cattle|soybean|dairy|grain|livestock/i, "Agribusiness"],
-  [/pfizer|merck|abbott|johnson &|unitedhealth|cigna|aetna|humana|mckesson|amerisource|cardinal health|biogen|amgen|gilead|regeneron|moderna|hospital|clinic|health system|medical center|physician|pharma|biotech|biohaven|starkey/i, "Health"],
-  [/kirkland|skadden|latham|jones day|sidley|weil gotshal|paul weiss|simpson thacher|milbank|davis polk|sullivan &|cleary|akin gump|lobbying|government affairs|public affairs|cornerstone government|van scoyoc|bgr group|capitol counsel/i, "Lawyers & Lobbyists"],
-  [/coinbase|andreessen|a16z|paradigm|winklevoss|crypto|blockchain|google|alphabet|microsoft|apple|meta|facebook|netflix|intel|qualcomm|nvidia|amd|salesforce|oracle|adobe|cisco|vmware|software|tech startup/i, "Communication/Electronics"],
-  [/at&t|verizon|comcast|charter|cox |sprint|t-mobile|dish network|media|broadcast|cable|telecom|nbc|cbs|abc |fox |disney|warner|discovery/i, "Communication/Electronics"],
-  [/university|college|school district|academy|professor|teacher/i, "Education"],
-  [/fedex|united parcel|ups |delta air|american airlines|southwest air|united airlines|alaska air|railroad|norfolk southern|union pacific|csx |bnsf|trucking|shipping|logistics|freight/i, "Transportation"],
-  // Finance last so specific industries above take priority
-  [/goldman|jpmorgan|morgan stanley|merrill|bank|financial|capital invest|credit|mortgage|insurance|mutual fund|fidelity|vanguard|schwab|blackstone|kkr|apollo|carlyle|bain capital|private equity|hedge fund|asset management|securities|brokerage|bnp|ubs|citi|wells fargo|american express|visa |mastercard|new york life|prudential|metlife|berkshire|aflac|allstate|nationwide|real estate|realty|realtor|lennar|pulte|dr horton|stephens/i, "Finance/Insurance/Real Est"],
+  // ── Defense ──────────────────────────────────────────────────────────────────
+  [/lockheed|boeing|raytheon|\brtx\b|general dynamics|northrop|l3 tech|l3harris|bae systems|huntington ingalls|leidos|saic|booz allen|general atomics|textron|harris corp|oshkosh|palantir|anduril|kiewit sons|peter kiewit|cubic corp|vectrus|amentum|esi engineering/i, "Defense"],
+
+  // ── Energy / Natural Resources ────────────────────────────────────────────────
+  [/exxon|chevron|conocophillips|\bbp\b|shell |marathon oil|valero|halliburton|schlumberger|baker hughes|pioneer natural|devon energy|entergy|dominion energy|nextera|duke energy|southern company|xcel energy|sempra|exelon|constellation energy|evergy|firstenergy|pacific gas|\boil\b|petroleum|pipeline|refinery|natural gas|flywheel energy|exploration[s]?|oilfield|ross explorations|kaitar resources|energy llc|energy corp/i, "Energy/Nat Resource"],
+
+  // ── Agribusiness ─────────────────────────────────────────────────────────────
+  [/tyson|cargill|archer daniels|bunge|corteva|john deere|monsanto|agco|farm bureau|farm credit|land o'lakes|smithfield|perdue|pilgrim|mountaire|mckee foods|little debbie|\bchicken\b|\bcattle\b|\bsoybean\b|\bdairy\b|\bgrain\b|\blivestock\b|\bpoultry\b|\bfarmer\b|\bhog\b|aquaculture|timber|lumber|sawmill|sierra pacific industries|anthony timberlands/i, "Agribusiness"],
+
+  // ── Health ────────────────────────────────────────────────────────────────────
+  [/pfizer|merck|abbott|johnson &|unitedhealth|cigna|aetna|humana|mckesson|amerisource|cardinal health|biogen|amgen|gilead|regeneron|moderna|hospital|clinic|health system|health initiative|medical center|st\. vincent|physician|pharma|biotech|biohaven|starkey|catholic health|health care/i, "Health"],
+
+  // ── Lawyers & Lobbyists ───────────────────────────────────────────────────────
+  // Named DC lobbying shops + any firm with LLP suffix or "law firm" in name
+  [/kirkland|skadden|latham & watkins|latham and watkins|jones day|sidley|weil gotshal|paul weiss|simpson thacher|milbank|davis polk|sullivan &|cleary|akin gump|gibson dunn|brownstein hyatt|harbinger strategies|ballard partners|fierce government|mehlman castagnetti|hohlt group|rich feuer anderson|\binvariant\b|\bclearpath\b|clear path|roosevelt group|lieblong|mckinley assoc|s-3 group|bell legal|cornerstone government|van scoyoc|bgr group|capitol counsel|cassidy & associates|russell group|icebreaker strategies|government relations|government affairs|public affairs|lobbying|\bllp\b|law group|law firm|legal group|attorneys at law/i, "Lawyers & Lobbyists"],
+
+  // ── Communication / Electronics ───────────────────────────────────────────────
+  // Tech and software companies (crypto finance goes to Finance below)
+  [/anthropic|openai|solana labs|google|alphabet|microsoft|apple|meta|facebook|netflix|intel|qualcomm|nvidia|amd|salesforce|oracle|adobe|cisco|vmware|andreessen|a16z|software|ats communications|fareharbor|\binkit\b/i, "Communication/Electronics"],
+  [/at&t|verizon|comcast|charter|\bcox\b|sprint|t-mobile|dish network|media|broadcast|cable|telecom|nbc|cbs|\babc\b|\bfox\b|disney|warner|discovery/i, "Communication/Electronics"],
+
+  // ── Education ─────────────────────────────────────────────────────────────────
+  [/university|college|school district|academy|\bprofessor\b|\bteacher\b/i, "Education"],
+
+  // ── Transportation ────────────────────────────────────────────────────────────
+  [/fedex|united parcel|\bups\b|delta air|american airlines|southwest air|united airlines|alaska air|railroad|norfolk southern|union pacific|\bcsx\b|bnsf|trucking|shipping|logistics|freight/i, "Transportation"],
+
+  // ── Agribusiness (food manufacturing) ────────────────────────────────────────
+  [/florida crystals|mclane group/i, "Agribusiness"],
+
+  // ── Finance / Insurance / Real Estate ────────────────────────────────────────
+  // Named firms first, then broad keyword patterns.
+  // Crypto exchanges and funds belong here (financial instruments, not tech).
+  [/goldman|jpmorgan|morgan stanley|merrill|fidelity|schwab|blackrock|blackstone|kkr|apollo|carlyle|bain capital|castle harlan|crow holdings|hudson bay capital|golub capital|cantor fitzgerald|berenson|audax group|capital group|capital funding|fisher investments|bluff point|simmons first|saracen development|cumberland development|kalshi|\bftx\b|coinbase|coinflip|paxos|multicoin|distributed capital|necessity ventures|necesssity ventures|winklevoss|paradigm/i, "Finance/Insurance/Real Est"],
+  [/\bbank\b|financial|insurance|mortgage|capital management|capital partners|capital advisors|wealth management|investment management|private credit|private equity|hedge fund|asset management|securities|brokerage|\bbnp\b|\bubs\b|\bciti\b|wells fargo|bny mellon|\bbny\b|american express|\bvisa\b|mastercard|new york life|prudential|metlife|berkshire|aflac|allstate|nationwide|real estate|realty|realtor|lennar|pulte|dr horton|stephens/i, "Finance/Insurance/Real Est"],
 ];
 
 export function classifyEmployer(employer: string): string {
@@ -32,7 +69,7 @@ export function classifyEmployer(employer: string): string {
 }
 
 export function isGenericEmployer(employer: string): boolean {
-  return GENERIC_EMPLOYERS.has(employer.toUpperCase().trim());
+  return GENERIC_EMPLOYERS.has(employer.toUpperCase().trim()) || isGovernmentEmployer(employer);
 }
 
 export interface FecCandidateTotals {
