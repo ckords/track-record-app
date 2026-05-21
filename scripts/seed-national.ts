@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import type { Party, GovernmentLevel, Chamber } from "../src/generated/prisma/client";
 import { Pool } from "pg";
 import {
   getCandidateTotals,
@@ -16,7 +17,7 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 interface VoteData {
   externalId: string;
   billTitle: string;
-  chamber: string;
+  chamber: Chamber;
   date: Date;
   position: string;
   category?: string;
@@ -26,10 +27,10 @@ interface VoteData {
 interface PoliticianConfig {
   slug: string;
   name: string;
-  party: string;
+  party: Party;
   state: string;
-  level: string;
-  chamber?: string;
+  level: GovernmentLevel;
+  chamber?: Chamber;
   district?: string;
   office: string;
   candidateId?: string;
@@ -821,10 +822,12 @@ async function syncPolitician(config: PoliticianConfig) {
       return;
     }
 
-    let topDonors: unknown[] = [];
-    let donorIndustries: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let topDonors: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let donorIndustries: any[] = [];
 
-    const effectiveCommitteeId = committeeId ?? (await getPrincipalCommitteeId(candidateId, cycle));
+    const effectiveCommitteeId = committeeId ?? (await getPrincipalCommitteeId(candidateId));
     if (effectiveCommitteeId) {
       try {
         const employers = await getTopEmployers(effectiveCommitteeId, cycle);
@@ -844,8 +847,7 @@ async function syncPolitician(config: PoliticianConfig) {
     console.log(`  Spent:  $${totalSpent.toLocaleString()}`);
     console.log(`  Cash:   $${cashOnHand.toLocaleString()}`);
     if (topDonors.length > 0) {
-      const donors = topDonors as Array<{ name: string }>;
-      console.log(`  Top employers: ${donors.slice(0, 3).map((d) => d.name).join(", ")}`);
+      console.log(`  Top employers: ${topDonors.slice(0, 3).map((d: { name: string }) => d.name).join(", ")}`);
     }
 
     await prisma.financeRecord.upsert({
