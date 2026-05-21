@@ -1,76 +1,71 @@
-import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
-const features = [
-  {
-    title: "Voting Records",
-    description: "See exactly how your representatives vote on every bill — federal, state, and local.",
-    href: "/politicians",
-    icon: "🗳️",
-  },
-  {
-    title: "Promise Tracker",
-    description: "Hold politicians to their campaign promises. Track what was promised and what was delivered.",
-    href: "/politicians",
-    icon: "📋",
-  },
-  {
-    title: "Campaign Finance",
-    description: "Follow the money. Understand who funds your politicians and what industries back them.",
-    href: "/politicians",
-    icon: "💰",
-  },
-  {
-    title: "Contact Your Rep",
-    description: "Find and contact your representatives at every level of government — all in one place.",
-    href: "/contact",
-    icon: "✉️",
-  },
-];
+export const revalidate = 3600;
+import VotingInterface, { type Bill } from "@/components/VotingInterface";
 
-export default function HomePage() {
+const BILL_DESCRIPTIONS: Record<string, string> = {
+  "American Rescue Plan Act of 2021":
+    "$1.9 trillion COVID-19 relief: $1,400 direct payments to most Americans, extended unemployment benefits, $350B for state and local governments, and accelerated vaccine distribution.",
+  "Infrastructure Investment and Jobs Act":
+    "$1.2 trillion bipartisan bill to rebuild roads, bridges, rail, and ports; expand broadband internet to rural areas; and modernize the power grid and water systems.",
+  "Inflation Reduction Act of 2022":
+    "The largest US climate investment ever ($369B), allowing Medicare to negotiate prescription drug prices for the first time, and imposing a 15% minimum corporate tax on large companies.",
+  "CARES Act":
+    "$2.2 trillion emergency relief: $1,200 direct payments, $600/week supplemental unemployment, $500B for corporations, and $130B for hospitals during the COVID-19 pandemic.",
+  "Tax Cuts and Jobs Act of 2017":
+    "Cut the corporate tax rate from 35% to 21%, nearly doubled the standard deduction, capped the SALT deduction at $10K, and added an estimated $1.5–1.9 trillion to the national deficit over 10 years.",
+  "American Health Care Act of 2017":
+    "Republican plan to repeal and replace the Affordable Care Act. Would have eliminated the individual mandate, cut Medicaid by $834B, and allowed states to waive protections for pre-existing conditions.",
+  "Ukraine Security Supplemental Appropriations Act":
+    "$61 billion in military and economic aid for Ukraine's defense against Russia's invasion, including artillery, air defense systems, and humanitarian assistance.",
+  "Article of Impeachment Against Donald J. Trump (Second Impeachment)":
+    "Charged President Trump with 'incitement of insurrection' for his role in the January 6, 2021 attack on the U.S. Capitol. He was acquitted by the Senate 57-43 — the most bipartisan impeachment vote in history.",
+};
+
+export default async function HomePage() {
+  const allVotes = await prisma.vote.findMany({
+    select: { billTitle: true, position: true, chamber: true, date: true, category: true },
+  });
+
+  const billMap = new Map<string, Bill>();
+
+  for (const v of allVotes) {
+    const existing = billMap.get(v.billTitle);
+    if (!existing) {
+      billMap.set(v.billTitle, {
+        billTitle: v.billTitle,
+        chamber: v.chamber,
+        date: v.date.toISOString(),
+        category: v.category,
+        description: BILL_DESCRIPTIONS[v.billTitle] ?? "",
+        yeas: v.position === "Yea" ? 1 : 0,
+        nays: v.position === "Nay" ? 1 : 0,
+      });
+    } else {
+      if (v.position === "Yea") existing.yeas++;
+      else if (v.position === "Nay") existing.nays++;
+    }
+  }
+
+  // Bills with descriptions first (most informative), then by date
+  const bills = Array.from(billMap.values()).sort((a, b) => {
+    const aHasDesc = a.description ? 1 : 0;
+    const bHasDesc = b.description ? 1 : 0;
+    if (aHasDesc !== bHasDesc) return bHasDesc - aHasDesc;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-20">
-      <div className="text-center mb-16">
-        <h1 className="text-5xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-4">
-          Hold Power Accountable
-        </h1>
-        <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Track voting records, campaign promises, and campaign finance for politicians
-          at every level of government — federal, state, and local.
-        </p>
-        <div className="mt-8 flex justify-center gap-4 flex-wrap">
-          <Link
-            href="/politicians"
-            className="inline-flex items-center px-6 py-3 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium text-sm hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
-          >
-            Browse Politicians
-          </Link>
-          <Link
-            href="/contact"
-            className="inline-flex items-center px-6 py-3 rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            Contact Your Rep
-          </Link>
+    <div>
+      <div className="bg-zinc-900 dark:bg-zinc-950 text-white py-8 px-4">
+        <div className="max-w-xl mx-auto text-center">
+          <h1 className="text-2xl font-bold tracking-tight mb-1">How would you vote?</h1>
+          <p className="text-sm text-zinc-400">
+            Vote on real bills. See which politicians agree with you.
+          </p>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {features.map((f) => (
-          <Link
-            key={f.title}
-            href={f.href}
-            className="group rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="text-3xl mb-3">{f.icon}</div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {f.title}
-            </h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              {f.description}
-            </p>
-          </Link>
-        ))}
-      </div>
+      <VotingInterface bills={bills} />
     </div>
   );
 }
