@@ -21,10 +21,12 @@ const AR_POLITICIANS: Array<{
   committeeId: string;
   cycle: number;
 }> = [
-  { slug: "tom-cotton",   candidateId: "S4AR00103", committeeId: "C00499988", cycle: 2026 },
-  { slug: "john-boozman", candidateId: "S0AR00150", committeeId: "C00476317", cycle: 2022 },
-  { slug: "french-hill",  candidateId: "H4AR02141", committeeId: "C00551275", cycle: 2024 },
-  { slug: "steve-womack", candidateId: "H0AR03055", committeeId: "C00477745", cycle: 2024 },
+  { slug: "tom-cotton",      candidateId: "S4AR00103", committeeId: "C00499988", cycle: 2026 },
+  { slug: "john-boozman",   candidateId: "S0AR00150", committeeId: "C00476317", cycle: 2022 },
+  { slug: "french-hill",    candidateId: "H4AR02141", committeeId: "C00551275", cycle: 2024 },
+  { slug: "steve-womack",   candidateId: "H0AR03055", committeeId: "C00477745", cycle: 2024 },
+  { slug: "rick-crawford",  candidateId: "H0AR01083", committeeId: "C00462374", cycle: 2024 },
+  { slug: "bruce-westerman", candidateId: "H4AR04048", committeeId: "C00548180", cycle: 2024 },
 ];
 
 async function syncOne(config: (typeof AR_POLITICIANS)[number]) {
